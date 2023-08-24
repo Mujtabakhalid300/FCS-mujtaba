@@ -1,14 +1,25 @@
 def fileread(term):
     if term == "2023 FALL":
-        infile = open("falldata.txt", "r")
+        infile = open("2023FAdata.txt", "r")
 
     elif term == "PHARMACY PROGRAM FALL 2023":
-        infile = open("pharmdata.txt", "r")
+        infile = open("PH23FAdata.txt", "r")
 
     course_data = infile.read().split("\n")
-    course_data = [x.split("!!") for x in course_data[:-1]]
 
     infile.close()
+
+    filtered_course_data = [x.split("!!") for x in course_data[:-1]]
+    course_data = []
+
+    for x in filtered_course_data:
+        if x[1].isdigit():
+            if int(x[1]) < 500:
+                course_data.append(x)
+
+        elif alplusnum(x[1]):
+            if int(x[1][:-1]) < 500:
+                course_data.append(x)
 
     # Taking care of table 1
     departments = list(set([x[0] for x in course_data]))
@@ -19,7 +30,7 @@ def fileread(term):
     courses = sorted(courses, key=lambda x: (x[0], x[1]))
 
     # Getting to table 3
-    # DEPT, ID, SECTION, DAYS, START, END, INSTRUCTOR, CLASSROOM, ALT CLASSROOM, ALT DAYS, ALT START, ALT END
+    # DEPT, ID, SECTION, DAYS, START, END, INSTRUCTOR, CLASSROOM, ALT CLASSROOM, ALT DAYS, ALT START, ALT END, T SEATS, A SEATS 
     sections = []
     for x in course_data:
         result = x[5]
@@ -48,19 +59,13 @@ def fileread(term):
     return course_data, departments, courses, sections
         
 
-# We'll see
-'''def data_retrieve(dept, name, instructor, start, end):
-    with open("falldata.txt", "r") as infile:
-        for line in infile:
-            data = line.strip().split("!!")
-            departments.add(x[0])
-
-            course = (x[0], x[1], x[3], x[4])
-            courses.add(course)
-
-    course_data = [x.split("!!") for x in course_data[:-1]]'''
-
 def cap_first_preserve_case(s):
     if len(s) == 0:
         return s
     return s[:1].upper() + s[1:]
+
+def alplusnum(input_string):
+    has_numbers = any(char.isdigit() for char in input_string)
+    has_alphabets = any(char.isalpha() for char in input_string)
+    
+    return has_numbers and has_alphabets

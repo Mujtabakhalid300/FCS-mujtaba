@@ -1,36 +1,94 @@
-from flask import render_template, Blueprint, request
+from flask import render_template, Blueprint, request, abort
 from flask_cors import CORS
 import json
 from dataread import fileread, cap_first_preserve_case
 from combcheck import *
+import time
+from scraper.master import current_time
+
+cached_sections = []
 
 my_blueprint = Blueprint('my_blueprint', __name__)
 CORS(my_blueprint)
 
 course_data, departments, courses, sections = fileread("2023 FALL")
 
+@my_blueprint.route('/old', methods=['GET', 'POST'])
+def indexOld():
+    return render_template("New_index.html")
+
+
+@my_blueprint.route('/test', methods=['GET', 'POST'])
+def indexOld2():
+    return render_template("tester.html")
+
+
+@my_blueprint.route('/paginationClick', methods=['POST'])
+def paginator():
+    page = int(request.form['page'])
+    items_per_page = 20
+    start_index = (page - 1) * items_per_page
+    end_index = start_index + items_per_page
+
+    global cached_sections
+    filtered_sections = cached_sections
+
+    sections_json = []
+
+    for section in filtered_sections[start_index:end_index]:
+        
+        if section[8] != "TBD":
+            instructor = section[8].title()
+        
+        else:
+            instructor = section[8]
+
+        sections_json.append({
+            'department_id': section[0],
+            'course_id': section[1],
+            'section': section[2],
+            'name': cap_first_preserve_case(section[3]),
+            'credits': section[4],
+            'days': "".join(filter(str.isalpha, section[5])),
+            'start_time': section[6],
+            'end_time': section[7],
+            'instructor_name': instructor,
+            'classroom': section[9],
+            'alternate_classroom': section[10],
+            'alternate_days': "".join(filter(str.isalpha, section[11])),
+            'alternate_start_time': section[12],
+            'alternate_end_time': section[13],
+            'total_seats': section[14],
+            'available_seats': section[15]
+        })
+    return json.dumps(sections_json, indent=2)
+
 @my_blueprint.route('/', methods=['GET', 'POST'])
 def index():
+    
     if request.method == 'POST':
         dropdown_value = request.form['dropdown'].upper()
         dropdown2_value = request.form['dropdown2'].upper()
         dropdown3_value = request.form['dropdown3'].upper()
 
-        print(dropdown_value, dropdown2_value, dropdown3_value)
-        filtered_sections = course_data
+        filtered_sections = []
 
-        if not (dropdown_value == "ALL" or dropdown_value == ""):
-            filtered_sections = [x for x in filtered_sections if x[0].upper() == dropdown_value]
+        for x in course_data:
+            if dropdown_value == "ALL" or dropdown_value == "" or x[0].upper() == dropdown_value:
+                if dropdown2_value == "ALL" or dropdown2_value == "" or x[3].upper() == dropdown2_value:
+                    if dropdown3_value == "ALL" or dropdown3_value == "" or x[8].upper() == dropdown3_value:
+                        filtered_sections.append(x)
 
-        if not (dropdown2_value == "ALL" or dropdown2_value == ""):
-            filtered_sections = [x for x in filtered_sections if x[3].upper() == dropdown2_value]
 
-        if not (dropdown3_value == "ALL" or dropdown3_value == ""):
-            filtered_sections = [x for x in filtered_sections if x[8].upper() == dropdown3_value]
-        
+        global cached_sections
+        cached_sections = filtered_sections
+
         # Convert sections to JSON format
         sections_json = []
-        for section in filtered_sections:
+
+        # Showing simon else
+        for section in filtered_sections[0:20]:
+        
             if section[8] != "TBD":
                 instructor = section[8].title()
             
@@ -51,19 +109,21 @@ def index():
                 'alternate_classroom': section[10],
                 'alternate_days': "".join(filter(str.isalpha, section[11])),
                 'alternate_start_time': section[12],
-                'alternate_end_time': section[13]
+                'alternate_end_time': section[13],
+                'total_seats': section[14],
+                'available_seats': section[15]
             })
 
-        return json.dumps(sections_json, indent=2)
+        return json.dumps({"data" : sections_json, "size": len(filtered_sections)}, indent=2)
     
-    return render_template('trying.html')
-
+    
+    return render_template('trying.html', current_time=current_time)
 
 @my_blueprint.route('/updateTerm', methods=['POST'])
 def update_term():
     global course_data, departments, courses, sections
 
-    selected_value = request.json.get('selectedValue')
+    selected_value = request.json.get('selectedValue').upper()
     course_data, departments, courses, sections = fileread(selected_value)
 
     return "Data updated successfully"
@@ -114,13 +174,48 @@ def update_department():
 
     return json.dumps(response_data)
 
-# Will look into it later
-'''
+
+@my_blueprint.route('/updateInstructor', methods=['POST'])
+def update_instructor():
+    data = request.get_json()['data'].upper()
+    department = request.get_json()['department'].upper()
+
+    filtered_courses = []
+
+    for x in course_data:
+        if (department == "ALL" or department == "" or x[0].upper() == department) and \
+        (data == "ALL" or data == "" or x[8].upper() == data):
+            filtered_courses.append(x[3])
+
+    courses_ = list(set(filtered_courses))    
+    courses_.sort()
+
+    courses_ = [
+    {'label': course.title(), 'value': course.title()} if course != 'TBD'
+      else {'label': course.upper(), 'value': course.upper()}
+    for course in courses_
+    ]
+
+    response_data = {
+        'courses': courses_
+    }
+
+    return json.dumps(response_data)
+
+
 @my_blueprint.route('/updateCourse', methods=['POST'])
 def update_course():
     data = request.get_json()['data'].upper()
-    instructors_ = list(set([x[8] for x in course_data if x[3].upper() == data]))
-    
+    department = request.get_json()['department'].upper()
+
+    filtered_instructors = []
+
+    for x in course_data:
+        if (department == "ALL" or department == "" or x[0].upper() == department) and \
+        (data == "ALL" or data == "" or x[3].upper() == data):
+            filtered_instructors.append(x[8])
+
+    instructors_ = list(set(filtered_instructors))    
     instructors_.sort()
 
     instructors_ = [
@@ -133,11 +228,12 @@ def update_course():
         'instructors': instructors_
     }
 
-    return json.dumps(response_data)'''
+    return json.dumps(response_data)
 
 
 @my_blueprint.route('/submit', methods=['POST'])
 def submit_selected_courses():
+    start_time = time.time()
     data = request.json
     selected_courses = data['selectedCourses']
     crucial_courses = data['checkedCrucials']
@@ -154,6 +250,7 @@ def submit_selected_courses():
     max_credit = int(data['maxCredit'])
 
     credit_filtered_combinations = credit_check(shortlist, min_credit, max_credit)
+    
     filtered_combinations = [filtered_comb for filtered_comb in credit_filtered_combinations
                              if duplicate_checker(filtered_comb) is False
                              and clash_check(filtered_comb) is False]
@@ -161,8 +258,8 @@ def submit_selected_courses():
     filtered_combinations = [filtered_comb for filtered_comb in filtered_combinations
                           if crucial(filtered_comb, [course["department_id"] + course["course_id"] for course in crucial_courses])]
 
-    combinations_dict = {}
-    for i, combination in enumerate(filtered_combinations, start=1):
+    combinations_lst = []
+    for combination in filtered_combinations:
         combination_data = []
         for section in combination:
             course_data_ = {
@@ -179,13 +276,16 @@ def submit_selected_courses():
                 'alternate_classroom': section[10],
                 'alternate_days': "".join(filter(str.isalpha, section[11])),
                 'alternate_start_time': section[12],
-                'alternate_end_time': section[13] 
+                'alternate_end_time': section[13],
+                'total_seats': section[14],
+                'available_seats': section[15]
             }
             combination_data.append(course_data_)
 
-        combinations_dict[f'Combination {i}'] = combination_data
+        combinations_lst.append(combination_data)
  
+    end_time = time.time()
+
+    print(end_time-start_time)
     # Return a response
-    return json.dumps(combinations_dict)
-
-
+    return json.dumps(combinations_lst)

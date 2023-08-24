@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  .pagination {
+    display: inline-block;
+  }
+
+  .pagination a {
+    padding: 8px 16px;
+    text-decoration: none;
+    transition: background-color 0.3s;
+  }
+
+  .pagination a.active {
+    background-color: #007bff;
+    color: white;
+  }
+
+  .pagination a:hover:not(.active) {
+    background-color: #ddd;
+  }
+</style>
+</head>
+<body>
+
+<div class="pagination" id="pagination">
+</div>
+
+<script>
+function generatePagination(currentPage, totalPages, visiblePages) {
+  const paginationContainer = document.getElementById("pagination");
+  paginationContainer.innerHTML = "";
+
+  const halfVisiblePages = Math.floor(visiblePages / 2);
+  const startPage = Math.max(currentPage - halfVisiblePages, 1);
+  const endPage = Math.min(startPage + visiblePages - 1, totalPages);
+
+  if (startPage > 1) {
+    paginationContainer.appendChild(createPaginationLink(1));
+  }
+
+  if (startPage > 2) {
+    paginationContainer.appendChild(createEllipsis());
+  }
+
+  for (let page = startPage; page <= endPage; page++) {
+    paginationContainer.appendChild(createPaginationLink(page, page === currentPage));
+  }
+
+  if (endPage < totalPages - 1) {
+    paginationContainer.appendChild(createEllipsis());
+  }
+
+  if (endPage < totalPages) {
+    paginationContainer.appendChild(createPaginationLink(totalPages));
+  }
+}
+
+function createPaginationLink(pageNumber, isActive = false) {
+  const link = document.createElement("a");
+  link.href = "#";
+  link.textContent = pageNumber;
+  if (isActive) {
+    link.classList.add("active");
+  }
+  link.addEventListener("click", () => {
+    // Handle click logic here
+    console.log(`Clicked on page ${pageNumber}`);
+  });
+  return link;
+}
+
+function createEllipsis() {
+  const ellipsis = document.createElement("span");
+  ellipsis.textContent = "...";
+  return ellipsis;
+}
+
+// Example usage
+generatePagination(5, 20, 5);
+</script>
+
+</body>
+</html>
