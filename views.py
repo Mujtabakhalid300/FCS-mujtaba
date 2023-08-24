@@ -1,8 +1,10 @@
-from flask import render_template, Blueprint, request
+from flask import render_template, Blueprint, request, abort
 from flask_cors import CORS
 import json
 from dataread import fileread, cap_first_preserve_case
 from combcheck import *
+import time
+from scraper.master import current_time
 
 cached_sections = []
 
@@ -19,7 +21,6 @@ def indexOld():
 @my_blueprint.route('/test', methods=['GET', 'POST'])
 def indexOld2():
     return render_template("tester.html")
-
 
 
 @my_blueprint.route('/paginationClick', methods=['POST'])
@@ -56,12 +57,15 @@ def paginator():
             'alternate_classroom': section[10],
             'alternate_days': "".join(filter(str.isalpha, section[11])),
             'alternate_start_time': section[12],
-            'alternate_end_time': section[13]
+            'alternate_end_time': section[13],
+            'total_seats': section[14],
+            'available_seats': section[15]
         })
     return json.dumps(sections_json, indent=2)
 
 @my_blueprint.route('/', methods=['GET', 'POST'])
 def index():
+    
     if request.method == 'POST':
         dropdown_value = request.form['dropdown'].upper()
         dropdown2_value = request.form['dropdown2'].upper()
@@ -105,13 +109,15 @@ def index():
                 'alternate_classroom': section[10],
                 'alternate_days': "".join(filter(str.isalpha, section[11])),
                 'alternate_start_time': section[12],
-                'alternate_end_time': section[13]
+                'alternate_end_time': section[13],
+                'total_seats': section[14],
+                'available_seats': section[15]
             })
 
         return json.dumps({"data" : sections_json, "size": len(filtered_sections)}, indent=2)
     
     
-    return render_template('trying.html')
+    return render_template('trying.html', current_time=current_time)
 
 @my_blueprint.route('/updateTerm', methods=['POST'])
 def update_term():
@@ -227,6 +233,7 @@ def update_course():
 
 @my_blueprint.route('/submit', methods=['POST'])
 def submit_selected_courses():
+    start_time = time.time()
     data = request.json
     selected_courses = data['selectedCourses']
     crucial_courses = data['checkedCrucials']
@@ -243,6 +250,7 @@ def submit_selected_courses():
     max_credit = int(data['maxCredit'])
 
     credit_filtered_combinations = credit_check(shortlist, min_credit, max_credit)
+    
     filtered_combinations = [filtered_comb for filtered_comb in credit_filtered_combinations
                              if duplicate_checker(filtered_comb) is False
                              and clash_check(filtered_comb) is False]
@@ -250,8 +258,8 @@ def submit_selected_courses():
     filtered_combinations = [filtered_comb for filtered_comb in filtered_combinations
                           if crucial(filtered_comb, [course["department_id"] + course["course_id"] for course in crucial_courses])]
 
-    combinations_dict = {}
-    for i, combination in enumerate(filtered_combinations, start=1):
+    combinations_lst = []
+    for combination in filtered_combinations:
         combination_data = []
         for section in combination:
             course_data_ = {
@@ -268,11 +276,16 @@ def submit_selected_courses():
                 'alternate_classroom': section[10],
                 'alternate_days': "".join(filter(str.isalpha, section[11])),
                 'alternate_start_time': section[12],
-                'alternate_end_time': section[13] 
+                'alternate_end_time': section[13],
+                'total_seats': section[14],
+                'available_seats': section[15]
             }
             combination_data.append(course_data_)
 
-        combinations_dict[f'Combination {i}'] = combination_data
+        combinations_lst.append(combination_data)
  
+    end_time = time.time()
+
+    print(end_time-start_time)
     # Return a response
-    return json.dumps(combinations_dict)
+    return json.dumps(combinations_lst)
