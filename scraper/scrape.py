@@ -3,11 +3,9 @@ from bs4 import BeautifulSoup
 import json
 
 sess = Session()
-
 terms = ['2023FA', 'PH23FA']
 
 for term in terms:
-
     page = sess.get('https://empower.fccollege.edu.pk/fusebox.cfm?fuseaction=CourseCatalog&rpt=1').content
     soup = BeautifulSoup(page, 'html.parser')
     data = soup.find('div',id='center_col').find_all('script')[1].get_text().replace('\r', '').replace('\n', '').replace(' ', '').split(';')

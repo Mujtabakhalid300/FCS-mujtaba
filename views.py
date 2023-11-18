@@ -1,10 +1,9 @@
-from flask import render_template, Blueprint, request, abort
+from flask import render_template, Blueprint, request
 from flask_cors import CORS
 import json
 from dataread import fileread, cap_first_preserve_case
 from combcheck import *
-import time
-from scraper.master import current_time
+from datetime import datetime, timedelta, timezone
 
 cached_sections = []
 
@@ -21,7 +20,6 @@ def indexOld():
 @my_blueprint.route('/test', methods=['GET', 'POST'])
 def indexOld2():
     return render_template("tester.html")
-
 
 @my_blueprint.route('/paginationClick', methods=['POST'])
 def paginator():
@@ -58,10 +56,11 @@ def paginator():
             'alternate_days': "".join(filter(str.isalpha, section[11])),
             'alternate_start_time': section[12],
             'alternate_end_time': section[13],
-            'total_seats': section[14],
-            'available_seats': section[15]
+            #'total_seats': section[14],
+            #'available_seats': section[15]
         })
     return json.dumps(sections_json, indent=2)
+
 
 @my_blueprint.route('/', methods=['GET', 'POST'])
 def index():
@@ -110,14 +109,24 @@ def index():
                 'alternate_days': "".join(filter(str.isalpha, section[11])),
                 'alternate_start_time': section[12],
                 'alternate_end_time': section[13],
-                'total_seats': section[14],
-                'available_seats': section[15]
+                #'total_seats': section[14],
+                #'available_seats': section[15]
             })
 
         return json.dumps({"data" : sections_json, "size": len(filtered_sections)}, indent=2)
     
+    # Get current time in UTC
+    current_time_utc = datetime.utcnow()
+
+    # Set the timezone to Pakistan Standard Time (Asia/Karachi)
+    pst_timezone = timezone(timedelta(hours=5))
+    current_time_pst = current_time_utc.replace(tzinfo=timezone.utc).astimezone(pst_timezone)
+
+    # Format the times in 12-hour format
+    formatted_current_time = current_time_pst.strftime("%I:%M %p")
     
-    return render_template('trying.html', current_time=current_time)
+    return render_template('trying.html', current_time=formatted_current_time)
+
 
 @my_blueprint.route('/updateTerm', methods=['POST'])
 def update_term():
@@ -233,7 +242,6 @@ def update_course():
 
 @my_blueprint.route('/submit', methods=['POST'])
 def submit_selected_courses():
-    start_time = time.time()
     data = request.json
     selected_courses = data['selectedCourses']
     crucial_courses = data['checkedCrucials']
@@ -277,15 +285,12 @@ def submit_selected_courses():
                 'alternate_days': "".join(filter(str.isalpha, section[11])),
                 'alternate_start_time': section[12],
                 'alternate_end_time': section[13],
-                'total_seats': section[14],
-                'available_seats': section[15]
+                #'total_seats': section[14],
+                #'available_seats': section[15]
             }
             combination_data.append(course_data_)
 
         combinations_lst.append(combination_data)
  
-    end_time = time.time()
-
-    print(end_time-start_time)
     # Return a response
     return json.dumps(combinations_lst)

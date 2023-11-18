@@ -5,7 +5,6 @@ if __name__ == "__main__":
     import parse
 
 
-
 # Get current time
 current_time = datetime.now()
 
